@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}探方列表 · 考古层位记录{% endblock %}
+{% block content %}
+<h1>探方列表</h1>
+
+<div class="card">
+  <strong>新建探方</strong>
+  <form method="post" action="{{ url_for('main.create_unit') }}">
+    <div class="grid">
+      <div>
+        <label>探方编号 *（如 T0203）</label>
+        <input type="text" name="code" required>
+      </div>
+      <div>
+        <label>名称</label>
+        <input type="text" name="name">
+      </div>
+    </div>
+    <label>备注</label>
+    <textarea name="note" rows="2"></textarea>
+    <button type="submit">创建探方</button>
+  </form>
+</div>
+
+{% if units %}
+<table class="card" style="padding:0">
+  <thead>
+    <tr><th>编号</th><th>名称</th><th>层位数</th><th>遗物批次</th><th>操作</th></tr>
+  </thead>
+  <tbody>
+  {% for u in units %}
+    <tr>
+      <td><a href="{{ url_for('main.unit_detail', unit_id=u.id) }}"><strong>{{ u.code }}</strong></a></td>
+      <td>{{ u.name or '—' }}</td>
+      <td>{{ u.stratum_count }}</td>
+      <td>{{ u.batch_count }}</td>
+      <td>
+        <a class="btn" href="{{ url_for('main.unit_detail', unit_id=u.id) }}">层位图</a>
+        <a class="btn ghost" href="{{ url_for('main.replay', unit_id=u.id) }}">回放</a>
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="muted">还没有探方，请先创建。</p>
+{% endif %}
+{% endblock %}

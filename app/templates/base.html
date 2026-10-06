@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}考古层位记录{% endblock %}</title>
+  <style>
+    :root {
+      --bg: #f4f1ea; --card: #fffdf8; --ink: #2c2620; --muted: #7a7164;
+      --line: #d9d2c3; --accent: #8a5a2b; --accent-dark: #6d4520;
+      --green: #2f7d4f; --red: #b3392e; --amber: #9a6b12;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: "Noto Sans CJK SC", "PingFang SC",
+        "Microsoft YaHei", sans-serif;
+      background: var(--bg); color: var(--ink); line-height: 1.6;
+    }
+    header {
+      background: var(--accent-dark); color: #f8f3e8; padding: .8rem 1.5rem;
+      display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+    }
+    header a { color: #f8f3e8; text-decoration: none; font-weight: 600; }
+    header .spacer { flex: 1; }
+    header form { display: flex; gap: .4rem; }
+    header input[type=text] {
+      padding: .3rem .6rem; border-radius: 4px; border: 1px solid #b89b76;
+    }
+    main { max-width: 1180px; margin: 1.4rem auto; padding: 0 1.2rem 4rem; }
+    h1 { font-size: 1.5rem; } h2 {
+      font-size: 1.15rem; border-bottom: 2px solid var(--line);
+      padding-bottom: .3rem; margin-top: 2rem;
+    }
+    .card {
+      background: var(--card); border: 1px solid var(--line); border-radius: 8px;
+      padding: 1rem 1.2rem; margin: 1rem 0;
+      box-shadow: 0 1px 3px rgba(80,60,30,.08);
+    }
+    .grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(300px,1fr)); }
+    label { display: block; font-size: .85rem; color: var(--muted); margin: .5rem 0 .15rem; }
+    input[type=text], input[type=number], select, textarea {
+      width: 100%; padding: .45rem .6rem; border: 1px solid var(--line);
+      border-radius: 5px; font-size: .95rem; background: #fff; color: var(--ink);
+    }
+    button, .btn {
+      display: inline-block; margin-top: .7rem; padding: .45rem 1.1rem;
+      background: var(--accent); color: #fff; border: none; border-radius: 5px;
+      cursor: pointer; font-size: .92rem; text-decoration: none;
+    }
+    button:hover, .btn:hover { background: var(--accent-dark); }
+    button.ghost { background: transparent; color: var(--accent-dark); border: 1px solid var(--accent); }
+    button.danger { background: var(--red); }
+    table { border-collapse: collapse; width: 100%; font-size: .9rem; }
+    th, td { text-align: left; padding: .45rem .6rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+    th { color: var(--muted); font-weight: 600; }
+    .tag { display: inline-block; padding: .05rem .5rem; border-radius: 10px; font-size: .75rem; }
+    .tag.open { background: #e0f0e6; color: var(--green); }
+    .tag.closed { background: #e8e3d8; color: var(--muted); }
+    .tag.retained { background: #fbe6d8; color: var(--red); }
+    .tag.applied { background: #e0f0e6; color: var(--green); }
+    .tag.discarded { background: #e8e3d8; color: var(--muted); }
+    .flash { padding: .7rem 1rem; border-radius: 6px; margin: .7rem 0; font-size: .92rem; }
+    .flash.success { background: #e0f0e6; border-left: 4px solid var(--green); }
+    .flash.error { background: #f7e1de; border-left: 4px solid var(--red); }
+    .flash.conflict { background: #fdefcf; border-left: 4px solid var(--amber); }
+    .muted { color: var(--muted); font-size: .85rem; }
+    .path { font-family: ui-monospace, monospace; background: #f3ecdf; padding: .1rem .4rem; border-radius: 4px; }
+    svg.graph { max-width: 100%; height: auto; }
+    .node rect { fill: #fff8ec; stroke: var(--accent); stroke-width: 1.5; }
+    .node.closed rect { fill: #eae5d9; stroke: #a99f8c; }
+    .node.highlight rect { stroke: var(--red); stroke-width: 3; }
+    .node text { font-size: 13px; fill: var(--ink); }
+    .node .code { font-weight: 700; }
+    .node .meta { font-size: 11px; fill: var(--muted); }
+    .edge { stroke: var(--accent-dark); stroke-width: 2; fill: none; }
+    .edge.highlight { stroke: var(--red); stroke-width: 3; }
+    .replay-controls { display: flex; gap: .8rem; align-items: center; flex-wrap: wrap; }
+    .replay-controls input[type=range] { flex: 1; min-width: 200px; }
+    #event-desc { font-size: 1rem; }
+  </style>
+</head>
+<body>
+<header>
+  <a href="{{ url_for('main.index') }}">🏺 考古层位记录</a>
+  <a href="{{ url_for('main.audit_page') }}" style="font-weight:400">审计记录</a>
+  <span class="spacer"></span>
+  <form method="post" action="{{ url_for('main.set_actor') }}">
+    <input type="text" name="actor" value="{{ session.get('actor', '匿名') }}"
+           placeholder="操作员姓名" aria-label="操作员">
+    <button type="submit" style="margin:0">设置</button>
+  </form>
+</header>
+<main>
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, msg in messages %}
+      <div class="flash {{ category }}">{{ msg }}</div>
+    {% endfor %}
+  {% endwith %}
+  {% block content %}{% endblock %}
+</main>
+</body>
+</html>

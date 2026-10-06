@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}审计记录{% endblock %}
+{% block content %}
+<h1>审计记录</h1>
+<p class="muted">审计日志只增不改，所有成功登记、矛盾冲突、草稿处理与导出均留痕。</p>
+
+<form method="get" class="card">
+  <div class="grid">
+    <div>
+      <label>探方</label>
+      <select name="unit_id">
+        <option value="">全部</option>
+        {% for u in units %}
+        <option value="{{ u.id }}" {{ 'selected' if f_unit == u.id|string }}>{{ u.code }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label>结果</label>
+      <select name="result">
+        <option value="">全部</option>
+        <option value="success" {{ 'selected' if f_result == 'success' }}>成功</option>
+        <option value="conflict" {{ 'selected' if f_result == 'conflict' }}>冲突</option>
+        <option value="info" {{ 'selected' if f_result == 'info' }}>信息</option>
+      </select>
+    </div>
+  </div>
+  <button type="submit">筛选</button>
+  <a class="btn ghost"
+     href="{{ url_for('main.audit_export', format='csv', unit_id=f_unit, result=f_result) }}">导出 CSV</a>
+  <a class="btn ghost"
+     href="{{ url_for('main.audit_export', format='json', unit_id=f_unit, result=f_result) }}">导出 JSON</a>
+</form>
+
+<table class="card" style="padding:0">
+  <thead>
+    <tr><th>时间</th><th>探方</th><th>操作员</th><th>动作</th><th>结果</th><th>对象</th><th>明细</th><th>冲突路径</th></tr>
+  </thead>
+  <tbody>
+  {% for log in logs %}
+  <tr>
+    <td class="muted" style="white-space:nowrap">{{ log.ts|dt }}</td>
+    <td>{{ log.unit_code or '—' }}</td>
+    <td>{{ log.actor }}</td>
+    <td>{{ actions.get(log.action, log.action) }}</td>
+    <td>
+      {% if log.result == 'success' %}<span class="tag open">成功</span>
+      {% elif log.result == 'conflict' %}<span class="tag retained">冲突</span>
+      {% else %}<span class="tag closed">信息</span>{% endif %}
+    </td>
+    <td>{{ log.entity or '—' }}</td>
+    <td>{{ log.detail or '—' }}</td>
+    <td>{% if log.conflict_path %}<span class="path">{{ log.conflict_path }}</span>{% else %}—{% endif %}</td>
+  </tr>
+  {% else %}
+  <tr><td colspan="8" class="muted">没有匹配的审计记录。</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

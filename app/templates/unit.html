@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+{% from "_macros.html" import render_graph %}
+{% block title %}{{ unit.code }} · 层位图{% endblock %}
+{% block content %}
+<p class="muted"><a href="{{ url_for('main.index') }}">← 返回探方列表</a></p>
+<h1>探方 {{ unit.code }} {% if unit.name %}<span class="muted">· {{ unit.name }}</span>{% endif %}</h1>
+{% if unit.note %}<p class="muted">{{ unit.note }}</p>{% endif %}
+<p>
+  <a class="btn ghost" href="{{ url_for('main.replay', unit_id=unit.id) }}">▶ 回放层位演变</a>
+  <a class="btn ghost" href="{{ url_for('main.audit_page', unit_id=unit.id) }}">查看本探方审计</a>
+</p>
+
+<h2>层位图（箭头方向：覆盖 → 被覆盖，自上而下）</h2>
+<div class="card">{{ render_graph(graph, id_prefix='unit') }}</div>
+
+<h2 id="strata">层位登记</h2>
+<div class="card">
+  <form method="post" action="{{ url_for('main.create_stratum', unit_id=unit.id) }}">
+    <div class="grid">
+      <div>
+        <label>层位编号 *（如 ③ / H3）</label>
+        <input type="text" name="code" required>
+      </div>
+      <div>
+        <label>发掘顺序 *（数字越小越早发掘，被覆盖者先发掘）</label>
+        <input type="number" name="excavation_order" min="1" required>
+      </div>
+    </div>
+    <label>描述（土质土色 / 性质）</label>
+    <input type="text" name="name">
+    <button type="submit">开放层位</button>
+  </form>
+</div>
+
+{% if strata %}
+<table class="card" style="padding:0">
+  <thead><tr><th>编号</th><th>描述</th><th>发掘顺序</th><th>状态</th><th>遗物批次</th><th>操作</th></tr></thead>
+  <tbody>
+  {% for s in strata %}
+    <tr>
+      <td><strong>{{ s.code }}</strong></td>
+      <td>{{ s.name or '—' }}</td>
+      <td>{{ s.excavation_order }}</td>
+      <td><span class="tag {{ s.status }}">{{ '已关闭' if s.status == 'closed' else '开放中' }}</span></td>
+      <td>
+        {% for b in batches if b.stratum_id == s.id %}
+          {{ b.code }}{% if not loop.last %}、{% endif %}
+        {% else %}<span class="muted">无</span>{% endfor %}
+      </td>
+      <td>
+        {% if s.status == 'open' %}
+        <form method="post" action="{{ url_for('main.close_stratum', unit_id=unit.id, stratum_id=s.id) }}"
+              style="margin:0" onsubmit="return confirm('关闭 {{ s.code }} 后将禁止补录遗物，且不可重开。确认关闭？')">
+          <button type="submit" class="ghost" style="margin:0">关闭层位</button>
+        </form>
+        {% else %}
+        <span class="muted">关闭于 {{ s.closed_at|dt }}</span>
+        {% endif %}
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+<h2 id="relations">覆盖关系</h2>
+<div class="card">
+  <form method="post" action="{{ url_for('main.create_relation', unit_id=unit.id) }}">
+    <div class="grid">
+      <div>
+        <label>覆盖方（上层，更晚发掘、顺序号更大）</label>
+        <select name="upper_id" required>
+          <option value="">请选择…</option>
+          {% for s in strata %}
+          <option value="{{ s.id }}" {{ 'selected' if prefill.upper_id == s.id }}>
+            {{ s.code }}（顺序 {{ s.excavation_order }}）
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label>被覆盖方（下层，更早发掘、顺序号更小）</label>
+        <select name="lower_id" required>
+          <option value="">请选择…</option>
+          {% for s in strata %}
+          <option value="{{ s.id }}" {{ 'selected' if prefill.lower_id == s.id }}>
+            {{ s.code }}（顺序 {{ s.excavation_order }}）
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <button type="submit">登记覆盖关系</button>
+    <p class="muted">系统会同时校验：关系不得成环、方向须符合发掘顺序；矛盾时显示冲突路径并保留草稿。</p>
+  </form>
+</div>
+
+{% if relations %}
+<table class="card" style="padding:0">
+  <thead><tr><th>覆盖方（上）</th><th>被覆盖方（下）</th><th>登记时间</th></tr></thead>
+  <tbody>
+  {% for r in relations %}
+  <tr>
+    <td><strong>{{ r.upper_code }}</strong></td>
+    <td>{{ r.lower_code }}</td>
+    <td class="muted">{{ r.created_at|dt }}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+<h2 id="artifacts">遗物批次</h2>
+<div class="card">
+  <form method="post" action="{{ url_for('main.create_batch', unit_id=unit.id) }}">
+    <div class="grid">
+      <div>
+        <label>批次编号 *</label>
+        <input type="text" name="code" value="{{ prefill.code or '' }}" required>
+      </div>
+      <div>
+        <label>归属层位 *（仅限开放层位）</label>
+        <select name="stratum_id" required>
+          <option value="">请选择…</option>
+          {% for s in strata %}
+          <option value="{{ s.id }}"
+                  {{ 'disabled' if s.status == 'closed' }}
+                  {{ 'selected' if prefill.stratum_id == s.id }}>
+            {{ s.code }}{{ '（已关闭，禁止补录）' if s.status == 'closed' else '（开放）' }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <label>遗物描述（质地 / 数量 / 备注）</label>
+    <textarea name="description" rows="2">{{ prefill.description or '' }}</textarea>
+    <button type="submit">登记遗物批次</button>
+  </form>
+</div>
+
+{% if batches %}
+<table class="card" style="padding:0">
+  <thead><tr><th>批次编号</th><th>归属层位</th><th>描述</th><th>登记时间</th></tr></thead>
+  <tbody>
+  {% for b in batches %}
+  <tr>
+    <td><strong>{{ b.code }}</strong></td>
+    <td>{{ b.stratum_code }}</td>
+    <td>{{ b.description or '—' }}</td>
+    <td class="muted">{{ b.created_at|dt }}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+<h2 id="drafts">草稿箱（矛盾保留）</h2>
+{% set live_drafts = drafts | selectattr('status', 'equalto', 'retained') | list %}
+{% if live_drafts %}
+<div class="card">
+  <table>
+    <thead><tr><th>#</th><th>类型</th><th>矛盾原因 / 冲突路径</th><th>内容</th><th>产生时间</th><th>操作</th></tr></thead>
+    <tbody>
+    {% for d in live_drafts %}
+    <tr>
+      <td>{{ d.id }}</td>
+      <td>{{ '覆盖关系' if d.kind == 'relation' else '遗物批次' }}</td>
+      <td>
+        {{ d.reason }}
+        {% if d.conflict_path %}<br><span class="path">{{ d.conflict_path }}</span>{% endif %}
+      </td>
+      <td class="muted">
+        {% if d.kind == 'relation' %}
+          上层 ID {{ d.payload_json.upper_id }} → 下层 ID {{ d.payload_json.lower_id }}
+        {% else %}
+          批次 {{ d.payload_json.code }} → 层位 ID {{ d.payload_json.stratum_id }}
+          {% if d.payload_json.description %}<br>{{ d.payload_json.description }}{% endif %}
+        {% endif %}
+      </td>
+      <td class="muted">{{ d.created_at|dt }}</td>
+      <td>
+        <form method="get" action="#{{ 'relations' if d.kind == 'relation' else 'artifacts' }}" style="margin:0">
+          <a class="btn ghost" style="margin:0"
+             href="{{ url_for('main.unit_detail', unit_id=unit.id, draft=d.id) }}#{{ 'relations' if d.kind == 'relation' else 'artifacts' }}">取出重试</a>
+        </form>
+        <form method="post" action="{{ url_for('main.discard_draft', draft_id=d.id) }}" style="margin:0;margin-top:.4rem">
+          <button type="submit" class="danger" style="margin:0">丢弃</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<p class="muted">暂无保留草稿。</p>
+{% endif %}
+
+{% set old_drafts = drafts | rejectattr('status', 'equalto', 'retained') | list %}
+{% if old_drafts %}
+<details class="card">
+  <summary class="muted">已处理草稿（{{ old_drafts|length }}）</summary>
+  <table>
+    <thead><tr><th>#</th><th>类型</th><th>状态</th><th>原因</th><th>处理时间</th></tr></thead>
+    <tbody>
+    {% for d in old_drafts %}
+    <tr>
+      <td>{{ d.id }}</td>
+      <td>{{ '覆盖关系' if d.kind == 'relation' else '遗物批次' }}</td>
+      <td><span class="tag {{ d.status }}">{{ '已核销' if d.status == 'applied' else '已丢弃' }}</span></td>
+      <td class="muted">{{ d.reason }}</td>
+      <td class="muted">{{ d.resolved_at|dt }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</details>
+{% endif %}
+{% endblock %}

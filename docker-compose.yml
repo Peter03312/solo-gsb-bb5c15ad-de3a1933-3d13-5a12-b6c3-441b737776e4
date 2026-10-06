@@ -1,0 +1,18 @@
+services:
+  archaeo:
+    build: .
+    image: archaeo-strata:latest
+    container_name: archaeo-strata
+    ports:
+      - "8000:8000"
+    environment:
+      # 生产部署请改为稳定随机值（用于 session 签名）
+      ARCH_SECRET_KEY: "change-me-in-production"
+      ARCH_DB_PATH: "/data/archaeo.db"
+      TZ: "Asia/Shanghai"
+    volumes:
+      - archaeo-data:/data
+    restart: unless-stopped
+
+volumes:
+  archaeo-data:
